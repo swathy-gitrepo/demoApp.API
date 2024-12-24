@@ -10,5 +10,15 @@ namespace DemoApp.API.Data
         }
 
         public DbSet<Contact> Contacts { get; set; }
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // Create a unique index on FirstName, LastName, and PhoneNumber
+            modelBuilder.Entity<Contact>()
+                .HasIndex(c => new { c.FirstName, c.LastName, c.PhoneNumber })
+                .IsUnique()
+                .HasDatabaseName("IX_unique_contacts");
+        }
     }
 }

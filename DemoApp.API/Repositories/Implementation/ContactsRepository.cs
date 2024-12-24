@@ -138,5 +138,12 @@ namespace DemoApp.API.Repositories.Implementation
         {
             return await dbContext.Contacts.FirstOrDefaultAsync(x => x.Id == id);
         }
+
+        public async Task<bool> isduplicateContact(Contact contact)
+        {
+            return await dbContext.Contacts.AnyAsync(x => x.PhoneNumber == contact.PhoneNumber &&
+            x.FirstName == contact.FirstName &&
+            x.LastName == contact.LastName);
+        }
     }
 }

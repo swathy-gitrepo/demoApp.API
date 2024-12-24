@@ -5,6 +5,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Client;
+using Serilog;
+using System.Text;
+using System.Text.Json;
 
 namespace DemoApp.API.Controllers
 {
@@ -14,6 +17,7 @@ namespace DemoApp.API.Controllers
     public class ContactsController : ControllerBase
     {
         private readonly IContactsRepository contactsRepository;
+
 
         public ContactsController(IContactsRepository contactsRepoitory)
         {
@@ -25,25 +29,17 @@ namespace DemoApp.API.Controllers
         public async Task<IActionResult> getAllContacts([FromQuery] string? sortBy,
             [FromQuery] string? sortDirection)
         {
-            try
-            {
-                var response = await contactsRepository.getAllContactsAsync(sortBy, sortDirection);
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
 
-                return StatusCode(500, ex.Message);
-            }
-            
+            var response = await contactsRepository.getAllContactsAsync(sortBy, sortDirection);
+
+            return Ok(response);
         }
 
         [HttpPost]
         [Route("addContact")]
         public async Task<IActionResult> createContact([FromBody]ContactDTO contactDetail)
         {
-            try
-            {
+
                 if(!ModelState.IsValid)
                 {
                     return BadRequest(ModelState);
@@ -60,6 +56,16 @@ namespace DemoApp.API.Controllers
                     Country = contactDetail.Country,
                     PostalCode = contactDetail.PostalCode
                 };
+                var isDuplicate = await contactsRepository.isduplicateContact(contactDomain);
+                if(isDuplicate)
+                {
+                var Errorresponse = new HttpResponseMessage
+                {
+                    StatusCode = System.Net.HttpStatusCode.BadRequest,
+                    ReasonPhrase = "Contact Already exists !"
+                };
+                return BadRequest(Errorresponse);
+                }
                 await contactsRepository.createAsync(contactDomain);
                 var response = new ContactListRespDTO  //Its not mandatory, but we can have control over response
                 { 
@@ -74,12 +80,14 @@ namespace DemoApp.API.Controllers
                     Country = contactDomain.Country,
                     PostalCode = contactDomain.PostalCode
                 };
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ex.Message);
-            }
+                var json = JsonSerializer.Serialize(response);
+                var successResponse = new HttpResponseMessage
+                {
+                    StatusCode = System.Net.HttpStatusCode.OK,
+                    Content = new StringContent(json, Encoding.UTF8, "application/json"),
+                    ReasonPhrase = "Contact created Successfully!"
+                };
+                return Ok(successResponse);
         }
 
 
@@ -87,8 +95,6 @@ namespace DemoApp.API.Controllers
         [Route("getContactById/{id}")]
         public async Task<IActionResult> getContactById([FromRoute] int id)
         {
-            try
-            {
                 if (id <=0)
                 {
                     var Errorresponse = new HttpResponseMessage
@@ -103,7 +109,14 @@ namespace DemoApp.API.Controllers
                     var response = await contactsRepository.getContactByIdAsync(id);
                     if (response != null)
                     {
-                        return Ok(response);
+                    var json = JsonSerializer.Serialize(response);
+                    var successResponse = new HttpResponseMessage
+                    {
+                        StatusCode = System.Net.HttpStatusCode.OK,
+                        Content = new StringContent(json, Encoding.UTF8, "application/json"),
+                        ReasonPhrase = "Contact data fetched"
+                    };
+                    return Ok(successResponse);
                     }
                     else
                     {
@@ -115,11 +128,6 @@ namespace DemoApp.API.Controllers
                         return NotFound(Errorresponse);
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ex.Message);
-            }
         }
 
 
@@ -127,37 +135,45 @@ namespace DemoApp.API.Controllers
         [Route("getContactByEmailAndPhoneNumber")]
         public async Task<IActionResult> getContactByEmailAndPhoneNumber([FromQuery]string email, [FromQuery] string phno)
         {
-            try
-            {
                 if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(phno))
                 {
-                    return BadRequest("Both email and phone number are required.");
+                    var Errorresponse = new HttpResponseMessage
+                    {
+                        StatusCode = System.Net.HttpStatusCode.BadRequest,
+                        ReasonPhrase = "Both email and phone number are required"
+                    };
+                    return BadRequest(Errorresponse);
                 }
                 else
                 {
                     var response = await contactsRepository.getContactByEmailAndPhoneNumberAsync(email, phno);
                     if(response !=null)
                     {
-                        return Ok(response);
+                        var json = JsonSerializer.Serialize(response);
+                        var successResponse = new HttpResponseMessage
+                        {
+                            StatusCode = System.Net.HttpStatusCode.OK,
+                            Content = new StringContent(json, Encoding.UTF8, "application/json"),
+                            ReasonPhrase = "Contact data fetched"
+                        };
+                        return Ok(successResponse);
                     }
                     else
                     {
-                        return NotFound("Contact Not Found");
+                    var Errorresponse = new HttpResponseMessage
+                    {
+                        StatusCode = System.Net.HttpStatusCode.NotFound,
+                        ReasonPhrase = "Contact Not Found"
+                    };
+                    return NotFound(Errorresponse);
                     }
                 }
-            }
-            catch(Exception ex)
-            {
-                return StatusCode(500,ex.Message);
-            }
         }
 
         [HttpPut]
         [Route("updateContact/{Id}")]
         public async Task<IActionResult> updateContact([FromRoute]int Id,[FromBody] ContactListRespDTO contactDetail)
         {
-            try
-            {
                 var contactDomain = new Contact
                 {
                     Id = Id,
@@ -190,19 +206,12 @@ namespace DemoApp.API.Controllers
                     };
                     return NotFound(Errorresponse);
                 }
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ex.Message);
-            }
         }
 
         [HttpDelete]
         [Route("deleteContact/{Id}")]
         public async Task<IActionResult> deleteContact([FromRoute] int Id)
         {
-            try
-            {
                 var contact = await contactsRepository.deleteContactAsync(Id);
                 if (contact)
                 {
@@ -222,11 +231,6 @@ namespace DemoApp.API.Controllers
                     };
                     return NotFound(Errorresponse);
                 }
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ex.Message);
-            }
         }
     }
 }

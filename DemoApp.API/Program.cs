@@ -1,10 +1,12 @@
 using DemoApp.API.Data;
+using DemoApp.API.Middleware;
 using DemoApp.API.Repositories.Implementation;
 using DemoApp.API.Repositories.Interface;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +42,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
         };
     });
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console() // Log to the console
+    .WriteTo.File(path : builder.Configuration["Serilog:LogFilePath"], rollingInterval: RollingInterval.Day)  // Log to a file with rolling
+    .CreateLogger();
+
+builder.Host.UseSerilog();
+
 var app = builder.Build();
 app.UseCors(options =>
 {
@@ -54,7 +63,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-
+app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 

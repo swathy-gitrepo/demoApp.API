@@ -12,5 +12,7 @@ namespace DemoApp.API.Repositories.Interface
 
         Task<Contact?> updateContactAsync(Contact contactDetails);
         Task<bool> deleteContactAsync(int Id);
+
+        Task<bool> isduplicateContact(Contact contact);
     }
 }
